@@ -1,0 +1,25 @@
+{
+  "name": "planeta-animal-agropet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site e catálogo da Planeta Animal Agropet, com sacola via WhatsApp e painel administrativo.",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.js",
+    "criar-admin": "node scripts/criar-admin.js",
+    "artes": "node scripts/preparar-artes.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "multer": "^2.0.1",
+    "sharp": "^0.34.1"
+  }
+}

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 262" role="img" aria-label="Paçoca"><title>Paçoca</title>
+<defs><clipPath id="corte-Paçoca"><rect x="-20" y="-20" width="300" height="272"/></clipPath>
+<g id="m-Paçoca"><g>
+ <path d="M44 112 L56 30 Q60 16 72 26 L120 70 Z" fill="#F2E4C2" stroke="#F2E4C2" stroke-width="12" stroke-linejoin="round"/>
+ <path d="M124 70 L172 26 Q184 16 188 30 L200 112 Z" fill="#F2E4C2" stroke="#F2E4C2" stroke-width="12" stroke-linejoin="round"/>
+ <path d="M64 70 L66 44 L92 64 Z" fill="#FC7F6B" stroke="#FC7F6B" stroke-width="8" stroke-linejoin="round"/>
+ <path d="M154 64 L178 44 L182 72 Z" fill="#FC7F6B" stroke="#FC7F6B" stroke-width="8" stroke-linejoin="round"/>
+ <rect x="40" y="60" width="164" height="240" rx="82" fill="#F2E4C2"/>
+ <g fill="#7E4532"><circle cx="96" cy="128" r="7"/><circle cx="148" cy="128" r="7"/></g>
+ <path d="M116 148 L122 154 L128 148 Z" fill="#FC7F6B" stroke="#FC7F6B" stroke-width="4" stroke-linejoin="round"/>
+ <path d="M106 160 Q114 169 122 160 Q130 169 138 160" fill="none" stroke="#7E4532" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+ <path d="M60 150 H24 M62 162 H28 M184 150 H220 M182 162 H216" fill="none" stroke="#7E4532" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+ <g fill="#F2E4C2" stroke="#DCCBA4" stroke-width="3"><ellipse cx="82" cy="240" rx="32" ry="22"/><ellipse cx="166" cy="240" rx="32" ry="22"/></g>
+ <path d="M72 246 V234 M84 248 V234 M156 246 V234 M168 248 V234" fill="none" stroke="#7E4532" stroke-width="3.5" stroke-linecap="round"/>
+</g></g></defs>
+<g clip-path="url(#corte-Paçoca)">
+ <use href="#m-Paçoca" fill="#fff" stroke="#fff" stroke-width="22" stroke-linejoin="round"/>
+ <use href="#m-Paçoca"/>
+</g>
+<rect x="18" y="246" width="214" height="12" rx="6" fill="#fff"/>
+</svg>
