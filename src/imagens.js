@@ -12,7 +12,8 @@ const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 sharp.cache(false);
 
 // Na Vercel (com BLOB_READ_WRITE_TOKEN) as fotos vão para o Vercel Blob; no computador, para a pasta uploads/.
-const NA_NUVEM = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+// A Vercel conecta o Blob com BLOB_STORE_ID (autenticação automática) ou, em projetos antigos, BLOB_READ_WRITE_TOKEN.
+const NA_NUVEM = Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const BLOB_OK = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/(produtos|categorias)\/[a-f0-9]{24}$/i;
 
 async function salvarImagem(buffer, pasta) {

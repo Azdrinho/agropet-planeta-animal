@@ -34,7 +34,7 @@ Na Vercel o site não tem disco: os dados ficam no **Turso** (banco) e as fotos 
    Na página do banco, copie a **URL** (`libsql://...`) e gere um **token**.
 2. **Vercel > seu projeto > Settings > Environment Variables:** cadastre `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`.
 3. **Fotos (Blob):** Vercel > seu projeto > aba **Storage** > **Create** > **Blob** > conecte ao projeto.
-   A Vercel cria a variável `BLOB_READ_WRITE_TOKEN` sozinha.
+   A Vercel cria a variável `BLOB_STORE_ID` sozinha (ou `BLOB_READ_WRITE_TOKEN`, em projetos antigos).
 4. **Redeploy:** aba Deployments > ⋯ no último deploy > Redeploy (as variáveis só valem em deploys novos).
 5. **Primeiro acesso e produtos de exemplo:** no seu computador, crie um `.env` com as três variáveis
    (copie do `.env.example`; o `BLOB_READ_WRITE_TOKEN` está em Storage > seu Blob > `.env.local`) e rode:
