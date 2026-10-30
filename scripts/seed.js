@@ -2,7 +2,7 @@
 // Só roda se o catálogo estiver vazio.  npm run seed
 const fs = require('node:fs');
 const path = require('node:path');
-const { db } = require('../src/db');
+const { db, pronto } = require('../src/db');
 const { salvarImagem } = require('../src/imagens');
 
 const CATS = [
@@ -33,20 +33,22 @@ const PRODS = [
 ];
 
 (async () => {
-  if (db.prepare('SELECT COUNT(*) n FROM categories').get().n) { console.log('Catálogo já tem dados; nada feito.'); return; }
+  await pronto();
+  if ((await db.get('SELECT COUNT(*) n FROM categories')).n) { console.log('Catálogo já tem dados; nada feito.'); return; }
   const ids = {};
-  CATS.forEach(([slug, nome, desc, cor], i) => {
-    ids[slug] = Number(db.prepare('INSERT INTO categories (slug, nome, descricao, cor, ordem) VALUES (?, ?, ?, ?, ?)').run(slug, nome, desc, cor, i).lastInsertRowid);
-  });
+  for (const [i, [slug, nome, desc, cor]] of CATS.entries()) {
+    ids[slug] = (await db.run('INSERT INTO categories (slug, nome, descricao, cor, ordem) VALUES (?, ?, ?, ?, ?)', slug, nome, desc, cor, i)).lastInsertRowid;
+  }
   for (const [i, p] of PRODS.entries()) {
-    const id = Number(db.prepare(`INSERT INTO products (slug, nome, marca, categoria_id, especie, resumo, destaque, ordem)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(p.slug, p.nome, p.marca, ids[p.cat], p.especie, p.resumo, p.destaque, i).lastInsertRowid);
-    p.variantes.forEach(([rot, preco, promo], j) => db.prepare('INSERT INTO variants (product_id, rotulo, preco, preco_promo, ordem) VALUES (?, ?, ?, ?, ?)').run(id, rot, preco, promo, j));
-    p.info.forEach(([k, v], j) => db.prepare('INSERT INTO product_info (product_id, chave, valor, ordem) VALUES (?, ?, ?, ?)').run(id, k, v, j));
+    const id = (await db.run(`INSERT INTO products (slug, nome, marca, categoria_id, especie, resumo, destaque, ordem)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, p.slug, p.nome, p.marca, ids[p.cat], p.especie, p.resumo, p.destaque, i)).lastInsertRowid;
+    for (const [j, [rot, preco, promo]] of p.variantes.entries()) await db.run('INSERT INTO variants (product_id, rotulo, preco, preco_promo, ordem) VALUES (?, ?, ?, ?, ?)', id, rot, preco, promo, j);
+    for (const [j, [k, v]] of p.info.entries()) await db.run('INSERT INTO product_info (product_id, chave, valor, ordem) VALUES (?, ?, ?, ?)', id, k, v, j);
     for (const [j, f] of p.fotos.entries()) {
       const base = await salvarImagem(fs.readFileSync(path.join(__dirname, 'exemplo', f)), 'produtos');
-      db.prepare('INSERT INTO product_images (product_id, arquivo, alt, ordem) VALUES (?, ?, ?, ?)').run(id, base, p.nome, j + 1);
+      await db.run('INSERT INTO product_images (product_id, arquivo, alt, ordem) VALUES (?, ?, ?, ?)', id, base, p.nome, j + 1);
     }
+    console.log('  +', p.nome);
   }
   console.log(`Exemplo criado: ${CATS.length} categorias, ${PRODS.length} produtos.`);
-})();
+})().catch((e) => { console.error(e.message); process.exit(1); });

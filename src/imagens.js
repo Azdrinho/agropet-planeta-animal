@@ -11,23 +11,35 @@ const TIPOS = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 
 sharp.cache(false);
 
+// Na Vercel (com BLOB_READ_WRITE_TOKEN) as fotos vão para o Vercel Blob; no computador, para a pasta uploads/.
+const NA_NUVEM = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const BLOB_OK = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/(produtos|categorias)\/[a-f0-9]{24}$/i;
+
 async function salvarImagem(buffer, pasta) {
   const destino = path.join(RAIZ, pasta);
-  fs.mkdirSync(destino, { recursive: true });
+  if (!NA_NUVEM) fs.mkdirSync(destino, { recursive: true });
   const meta = await sharp(buffer, { limitInputPixels: 40_000_000 }).metadata(); // lança erro se não for imagem
   if (!meta.width || !meta.height) throw new Error('Imagem inválida.');
   // Fotos de produto (packshot) costumam vir com muita margem branca ou transparente:
   // corta essa sobra para a embalagem preencher o quadro do card.
   if (pasta === 'produtos') buffer = await aparar(buffer);
   const nome = crypto.randomBytes(12).toString('hex');
+  let baseBlob = '';
   for (const w of TAMANHOS) {
-    await sharp(buffer, { limitInputPixels: 40_000_000 })
+    const webp = await sharp(buffer, { limitInputPixels: 40_000_000 })
       .rotate()
       .resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: w > 1000 ? 82 : 80, alphaQuality: 90 })
-      .toFile(path.join(destino, `${nome}-${w}.webp`));
+      .toBuffer();
+    if (NA_NUVEM) {
+      const { put } = require('@vercel/blob');
+      const r = await put(`${pasta}/${nome}-${w}.webp`, webp, { access: 'public', addRandomSuffix: false, contentType: 'image/webp', cacheControlMaxAge: 31536000 });
+      baseBlob = r.url.replace(/-\d+\.webp$/, '');
+    } else {
+      fs.writeFileSync(path.join(destino, `${nome}-${w}.webp`), webp);
+    }
   }
-  return `${pasta}/${nome}`;
+  return NA_NUVEM ? baseBlob : `${pasta}/${nome}`;
 }
 
 async function aparar(buffer) {
@@ -49,21 +61,32 @@ async function aparar(buffer) {
   }
 }
 
-function apagarImagem(base) {
-  if (!/^[a-z-]+\/[a-f0-9]{24}$/.test(base)) return; // só apaga arquivos gerados por nós
-  for (const w of TAMANHOS) fs.rm(path.join(RAIZ, `${base}-${w}.webp`), { force: true }, () => {});
+async function apagarImagem(base) {
+  try {
+    if (BLOB_OK.test(base)) { // só apaga arquivos gerados por nós
+      const { del } = require('@vercel/blob');
+      await del(TAMANHOS.map((w) => `${base}-${w}.webp`));
+    } else if (/^[a-z-]+\/[a-f0-9]{24}$/.test(base)) {
+      for (const w of TAMANHOS) fs.rmSync(path.join(RAIZ, `${base}-${w}.webp`), { force: true });
+    }
+  } catch (e) {
+    console.error('Não consegui apagar a imagem', base, e.message);
+  }
 }
 
-// URL pública de um tamanho. base = "produtos/abc123..." (upload) ou caminho de arte fixa "/img/..."
+// URL pública de um tamanho. base = URL do Blob, "produtos/abc123..." (disco) ou arte fixa "/img/..."
+function prefixo(base) {
+  return base.startsWith('https://') ? base : `/uploads/${base}`;
+}
 function urlImagem(base, w = 960) {
   if (!base) return '/img/artes/sem-foto.webp';
   if (base.startsWith('/')) return base;
-  return `/uploads/${base}-${w}.webp`;
+  return `${prefixo(base)}-${w}.webp`;
 }
 
 function srcset(base) {
   if (!base || base.startsWith('/')) return '';
-  return TAMANHOS.map((w) => `/uploads/${base}-${w}.webp ${w}w`).join(', ');
+  return TAMANHOS.map((w) => `${prefixo(base)}-${w}.webp ${w}w`).join(', ');
 }
 
 module.exports = { salvarImagem, apagarImagem, urlImagem, srcset, TIPOS };

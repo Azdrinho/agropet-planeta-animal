@@ -38,6 +38,7 @@ function senhaFraca(senha) {
 }
 
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
+const dataSql = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
 function lerCookies(req) {
   const out = {};
@@ -52,56 +53,58 @@ function cookieSeguro(req) {
   return process.env.COOKIE_SECURE === '1' || req.secure;
 }
 
-function login(req, res, email, senha) {
-  const u = db.prepare('SELECT * FROM users WHERE email = ?').get(String(email || '').trim());
+async function login(req, res, email, senha) {
+  const u = await db.get('SELECT * FROM users WHERE email = ?', String(email || '').trim());
   const agora = new Date();
   if (!u) {
     confereSenha(String(senha || ''), HASH_FALSO);
     return { erro: 'E-mail ou senha incorretos.' };
   }
   if (u.bloqueado_ate && new Date(u.bloqueado_ate + 'Z') > agora) {
-    return { erro: `Muitas tentativas. Tente de novo em alguns minutos.` };
+    return { erro: 'Muitas tentativas. Tente de novo em alguns minutos.' };
   }
   if (!confereSenha(String(senha || ''), u.senha_hash)) {
     const t = u.tentativas + 1;
-    const bloqueio = t >= MAX_TENTATIVAS
-      ? new Date(agora.getTime() + BLOQUEIO_MIN * 60000).toISOString().slice(0, 19).replace('T', ' ')
-      : null;
-    db.prepare('UPDATE users SET tentativas = ?, bloqueado_ate = ? WHERE id = ?').run(bloqueio ? 0 : t, bloqueio, u.id);
-    registrar(null, 'login falhou', u.email, req);
+    const bloqueio = t >= MAX_TENTATIVAS ? dataSql(new Date(agora.getTime() + BLOQUEIO_MIN * 60000)) : null;
+    await db.run('UPDATE users SET tentativas = ?, bloqueado_ate = ? WHERE id = ?', bloqueio ? 0 : t, bloqueio, u.id);
+    await registrar(null, 'login falhou', u.email, req);
     return { erro: 'E-mail ou senha incorretos.' };
   }
-  db.prepare("UPDATE users SET tentativas = 0, bloqueado_ate = NULL, ultimo_login = datetime('now') WHERE id = ?").run(u.id);
-  criarSessao(req, res, u.id);
-  registrar(u.id, 'entrou no painel', '', req);
+  await db.run("UPDATE users SET tentativas = 0, bloqueado_ate = NULL, ultimo_login = datetime('now') WHERE id = ?", u.id);
+  await criarSessao(req, res, u.id);
+  await registrar(u.id, 'entrou no painel', '', req);
   return { ok: true };
 }
 
-function criarSessao(req, res, userId) {
+async function criarSessao(req, res, userId) {
   const token = crypto.randomBytes(32).toString('base64url');
   const csrf = crypto.randomBytes(24).toString('base64url');
-  const expira = new Date(Date.now() + DURACAO_H * 3600000).toISOString().slice(0, 19).replace('T', ' ');
-  db.prepare('INSERT INTO sessions (id, user_id, csrf, expira_em, ip, agente) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(sha(token), userId, csrf, expira, req.ip || '', String(req.headers['user-agent'] || '').slice(0, 200));
+  const expira = dataSql(new Date(Date.now() + DURACAO_H * 3600000));
+  await db.run('INSERT INTO sessions (id, user_id, csrf, expira_em, ip, agente) VALUES (?, ?, ?, ?, ?, ?)',
+    sha(token), userId, csrf, expira, req.ip || '', String(req.headers['user-agent'] || '').slice(0, 200));
   res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_H * 3600}${cookieSeguro(req) ? '; Secure' : ''}`);
 }
 
-function sair(req, res) {
+async function sair(req, res) {
   const token = lerCookies(req)[COOKIE];
-  if (token) db.prepare('DELETE FROM sessions WHERE id = ?').run(sha(token));
+  if (token) await db.run('DELETE FROM sessions WHERE id = ?', sha(token));
   res.setHeader('Set-Cookie', `${COOKIE}=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${cookieSeguro(req) ? '; Secure' : ''}`);
 }
 
 // Carrega a sessão (se houver) em req.admin
-function sessao(req, _res, next) {
-  db.prepare("DELETE FROM sessions WHERE expira_em < datetime('now')").run();
-  const token = lerCookies(req)[COOKIE];
-  if (token) {
-    const s = db.prepare(`SELECT s.csrf, u.id, u.email, u.nome FROM sessions s JOIN users u ON u.id = s.user_id
-                          WHERE s.id = ? AND s.expira_em > datetime('now')`).get(sha(token));
-    if (s) req.admin = { id: s.id, email: s.email, nome: s.nome, csrf: s.csrf };
+async function sessao(req, _res, next) {
+  try {
+    const token = lerCookies(req)[COOKIE];
+    if (token) {
+      const s = await db.get(`SELECT s.csrf, u.id, u.email, u.nome FROM sessions s JOIN users u ON u.id = s.user_id
+                              WHERE s.id = ? AND s.expira_em > datetime('now')`, sha(token));
+      if (s) req.admin = { id: s.id, email: s.email, nome: s.nome, csrf: s.csrf };
+    }
+    if (Math.random() < 0.05) await db.run("DELETE FROM sessions WHERE expira_em < datetime('now')"); // faxina de vez em quando
+    next();
+  } catch (e) {
+    next(e);
   }
-  next();
 }
 
 function exigeAdmin(req, res, next) {
@@ -128,9 +131,9 @@ function confereCsrf(req, res, next) {
   next();
 }
 
-function registrar(userId, acao, alvo, req) {
-  db.prepare('INSERT INTO activity (user_id, acao, alvo, ip) VALUES (?, ?, ?, ?)')
-    .run(userId, acao, String(alvo || '').slice(0, 200), (req && req.ip) || '');
+async function registrar(userId, acao, alvo, req) {
+  await db.run('INSERT INTO activity (user_id, acao, alvo, ip) VALUES (?, ?, ?, ?)',
+    userId, acao, String(alvo || '').slice(0, 200), (req && req.ip) || '');
 }
 
 module.exports = { hashSenha, confereSenha, senhaFraca, login, sair, sessao, exigeAdmin, confereCsrf, registrar };

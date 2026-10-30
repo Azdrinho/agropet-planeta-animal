@@ -1,6 +1,5 @@
 // Layout do site público: cabeçalho, sacola (gaveta), rodapé. Sem script inline (CSP).
 const { html, cru, h, linhas, soDigitos, VERSAO } = require('../util');
-const { categorias } = require('../catalogo');
 
 const ICONES = {
   sacola: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>',
@@ -23,7 +22,7 @@ function linkWhats(cfg, texto) {
 }
 
 function layout({ cfg, titulo, descricao, corpo, pagina = '', imagemOg, jsonld, canonico, tema = '' }) {
-  const cats = categorias();
+  const cats = cfg._cats || []; // o servidor carrega as categorias junto com a configuração
   const nomeLoja = cfg.loja_nome || 'Planeta Animal Agropet';
   const tituloCompleto = titulo ? `${titulo} · ${nomeLoja}` : `${nomeLoja} · ${cfg.assinatura || ''}`;
   const desc = descricao || cfg.hero_texto || '';

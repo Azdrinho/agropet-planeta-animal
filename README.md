@@ -26,9 +26,31 @@ Abra http://127.0.0.1:3000 (site) e http://127.0.0.1:3000/admin (painel).
 - `npm run criar-admin` cria um acesso ou redefine a senha de um e-mail existente. **Não existe senha padrão.**
 - `npm run artes` refaz as imagens do site a partir da pasta `../marca` (só se trocar alguma arte).
 
-## Publicar
+## Publicar na Vercel (grátis)
+
+Na Vercel o site não tem disco: os dados ficam no **Turso** (banco) e as fotos no **Vercel Blob**. Os dois têm plano grátis.
+
+1. **Banco (Turso):** crie uma conta em turso.tech e um banco (região mais perto: São Paulo, se houver).
+   Na página do banco, copie a **URL** (`libsql://...`) e gere um **token**.
+2. **Vercel > seu projeto > Settings > Environment Variables:** cadastre `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`.
+3. **Fotos (Blob):** Vercel > seu projeto > aba **Storage** > **Create** > **Blob** > conecte ao projeto.
+   A Vercel cria a variável `BLOB_READ_WRITE_TOKEN` sozinha.
+4. **Redeploy:** aba Deployments > ⋯ no último deploy > Redeploy (as variáveis só valem em deploys novos).
+5. **Primeiro acesso e produtos de exemplo:** no seu computador, crie um `.env` com as três variáveis
+   (copie do `.env.example`; o `BLOB_READ_WRITE_TOKEN` está em Storage > seu Blob > `.env.local`) e rode:
+   ```bash
+   npm run criar-admin -- voce@email.com "Senha com 10 ou mais caracteres 123" "Seu nome"
+   npm run seed
+   ```
+   Os comandos gravam direto no banco e no Blob do site publicado. O `seed` é opcional.
+6. Abra o site e, em **/admin > Dados da loja**, preencha o WhatsApp, endereço e horário.
+
+Limites: a Vercel aceita até 4,5 MB por envio, por isso o painel reduz as fotos no navegador e aceita até 6 por vez.
+
+## Publicar em servidor próprio
 
 Qualquer hospedagem que rode Node.js serve: VPS (Hostinger, DigitalOcean, Contabo), Railway, Render, Fly.io.
+Sem as variáveis do Turso e do Blob, o site usa `data/loja.db` e a pasta `uploads/`.
 
 1. Envie a pasta inteira, **menos** `node_modules/`, `data/` e `uploads/` (eles são criados no servidor).
 2. No servidor: `npm install --omit=dev`.
@@ -48,8 +70,8 @@ Qualquer hospedagem que rode Node.js serve: VPS (Hostinger, DigitalOcean, Contab
 
 ### Backup
 
-Tudo que muda está em duas pastas: `data/` (banco SQLite `loja.db`) e `uploads/` (fotos enviadas pelo painel).
-Copie as duas com frequência. Para copiar o banco com o site no ar, use `sqlite3 data/loja.db ".backup backup.db"`.
+Na Vercel: o Turso guarda backups automáticos (veja o plano), e as fotos ficam no Blob.
+Em servidor próprio: tudo que muda está em `data/` (banco `loja.db`) e `uploads/` (fotos). Copie as duas com frequência.
 
 ## Segurança (o que já vem pronto)
 

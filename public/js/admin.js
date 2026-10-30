@@ -38,13 +38,45 @@
     });
   }
 
+  // Reduz a foto no navegador (lado maior 2000 px, WebP) para caber no limite de envio da hospedagem (4,5 MB por envio)
+  async function reduzir(arquivo) {
+    if (!arquivo.type.startsWith('image/')) return arquivo;
+    try {
+      const bmp = await createImageBitmap(arquivo);
+      const escala = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+      if (escala === 1 && arquivo.size < 900 * 1024) return arquivo;
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * escala);
+      c.height = Math.round(bmp.height * escala);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      const blob = await new Promise((r) => c.toBlob(r, 'image/webp', 0.88));
+      if (!blob || blob.size >= arquivo.size) return arquivo;
+      return new File([blob], arquivo.name.replace(/\.\w+$/, '') + '.webp', { type: 'image/webp' });
+    } catch {
+      return arquivo;
+    }
+  }
+  const MAX_FOTOS = 6;
+
   // prévia das fotos escolhidas + arrastar e soltar
   $$('[data-preview]').forEach((inp) => {
     const alvo = inp.closest('form').querySelector('[data-preview-alvo]');
     const zona = inp.closest('[data-soltar]');
-    inp.addEventListener('change', () => {
+    let reduzindo = false;
+    inp.addEventListener('change', async () => {
+      if (reduzindo) return;
       alvo.textContent = '';
-      [...inp.files].slice(0, 12).forEach((f) => {
+      let arquivos = [...inp.files];
+      if (arquivos.length > MAX_FOTOS) {
+        alert(`Envie até ${MAX_FOTOS} fotos por vez. Salve e depois adicione as outras.`);
+        arquivos = arquivos.slice(0, MAX_FOTOS);
+      }
+      reduzindo = true;
+      const dt = new DataTransfer();
+      for (const f of await Promise.all(arquivos.map(reduzir))) dt.items.add(f);
+      inp.files = dt.files;
+      reduzindo = false;
+      [...inp.files].forEach((f) => {
         if (!f.type.startsWith('image/')) return;
         const img = document.createElement('img');
         img.alt = '';
